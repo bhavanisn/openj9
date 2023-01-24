@@ -237,6 +237,17 @@ bool TR_J9ByteCodeIlGenerator::internalGenIL()
             }
          }
 
+      static bool doArraycmpMismatch = feGetEnv("AM_TEST") != NULL;
+      if (doArraycmpMismatch && recognizedMethod == TR::jdk_internal_util_ArraysSupport_vectorizedMismatch)
+         {
+		printf("Recgnized Vectorized Mistmatch\n");
+         if (performTransformation(comp(), "O^O IlGenerator: Generate jdk/internal/util/ArraysSupport/vectorizedMismatch\n"))
+            {
+            genVectorizedMismatch();
+            return true;
+            }
+         }
+
       if (!comp()->getOption(TR_DisableInliningOfNatives))
          {
          // If we're inlining then there are some stack walking routines that can be made faster
@@ -1418,6 +1429,109 @@ TR_J9ByteCodeIlGenerator::genIsORBDeepCopyAvailable()
    prependEntryCode(blocks(0));
 
    dumpOptDetails(comp(), "\tOverriding default return value with %d.\n", constToLoad);
+   }
+
+
+void
+TR_J9ByteCodeIlGenerator::genVectorizedMismatch()
+   {
+    //
+    // int vectorizedMismatch(byte *a, long aOffset,
+    //                        byte *b, long bOffset,
+    //                        int length,
+    //                        int log2ArrayIndexScale) {
+    //    int lengthInBytes = length << log2ArrayIndexScale;
+    //    int mask = (log2ArrayIndexScale<<1) | 3;
+    //    int n = lengthInBytes & ~(mask);
+    //    int res = arraycmp(a+aOffset, b+bOffset, n);
+    //    if (res == n) // no mismatch found
+    //       return ~((lengthInBytes & mask) >> log2ArrayIndexScale);
+    //    else          // mismatch found
+    //       return res >> log2ArrayIndexScale;
+    // }
+    //
+
+		printf("In genvectorized Ilgen : Vectorized Mistmatch\n");
+   // parameters
+   ListIterator<TR::ParameterSymbol> parms(&_methodSymbol->getParameterList());
+   TR::ParameterSymbol * p = parms.getFirst();
+   TR::SymbolReference * a = symRefTab()->findOrCreateAutoSymbol(_methodSymbol, p->getSlot(), p->getDataType());
+   p = parms.getNext();
+   TR::SymbolReference * aOffset = symRefTab()->findOrCreateAutoSymbol(_methodSymbol, p->getSlot(), p->getDataType());
+   p = parms.getNext();
+   TR::SymbolReference * b = symRefTab()->findOrCreateAutoSymbol(_methodSymbol, p->getSlot(), p->getDataType());
+   p = parms.getNext();
+   TR::SymbolReference * bOffset = symRefTab()->findOrCreateAutoSymbol(_methodSymbol, p->getSlot(), p->getDataType());
+   p = parms.getNext();
+   TR::SymbolReference * length = symRefTab()->findOrCreateAutoSymbol(_methodSymbol, p->getSlot(), p->getDataType());
+   p = parms.getNext();
+   TR::SymbolReference * log2ArrayIndexScale = symRefTab()->findOrCreateAutoSymbol(_methodSymbol, p->getSlot(), p->getDataType());
+
+   // variables
+   TR::SymbolReference * lengthInBytes = symRefTab()->createTemporary(_methodSymbol, TR::Int32);
+   TR::SymbolReference * mask = symRefTab()->createTemporary(_methodSymbol, TR::Int32);
+   TR::SymbolReference * n = symRefTab()->createTemporary(_methodSymbol, TR::Int32);
+   TR::SymbolReference * res = symRefTab()->createTemporary(_methodSymbol, TR::Int32);
+   TR::SymbolReference * rv = symRefTab()->createTemporary(_methodSymbol, TR::Int32);
+
+   TR::Block * ifBlock = TR::Block::createEmptyBlock(comp());
+   TR::Block * thenBlock = TR::Block::createEmptyBlock(comp());
+   TR::Block * elseBlock = TR::Block::createEmptyBlock(comp());
+   TR::Block * returnBlock = TR::Block::createEmptyBlock(comp());
+
+   _block = ifBlock;
+   _methodSymbol->setFirstTreeTop(ifBlock->getEntry());
+   // initialize variables
+   genTreeTop(TR::Node::createStore(lengthInBytes,
+                                    TR::Node::create(TR::ishl, 2,
+                                    TR::Node::createLoad(length),
+                                    TR::Node::createLoad(log2ArrayIndexScale))));
+   genTreeTop(TR::Node::createStore(mask,
+                                    TR::Node::create(TR::ior, 2,
+                                                     TR::Node::create(TR::ishl, 2,
+                                                                      TR::Node::createLoad(log2ArrayIndexScale),
+                                                                      TR::Node::create(TR::iconst, 0, 1)),
+                                                     TR::Node::create(TR::iconst, 0, 3))));
+   genTreeTop(TR::Node::createStore(n,
+                                    TR::Node::create(TR::iand, 2,
+                                                     TR::Node::createLoad(lengthInBytes),
+                                                     TR::Node::create(TR::ixor, 2,
+                                                                      TR::Node::createLoad(mask),
+                                                                      TR::Node::create(TR::iconst, 0, -1)))));
+   TR::Node * resNode = TR::Node::create(TR::arraycmp, 3,
+                                         TR::Node::create(TR::aladd, 2, TR::Node::createLoad(a), TR::Node::createLoad(aOffset)),
+                                         TR::Node::create(TR::aladd, 2, TR::Node::createLoad(b), TR::Node::createLoad(bOffset)),
+                                         TR::Node::create(TR::i2l, 1, TR::Node::createLoad(n)));
+   resNode->setArrayCmpLen(true);
+   resNode->setSymbolReference(symRefTab()->findOrCreateArrayCmpSymbol());
+   genTreeTop(TR::Node::createStore(res, resNode));
+
+   // start if statement
+   genTreeTop(TR::Node::createif(TR::ificmpne, TR::Node::createLoad(n), TR::Node::createLoad(res), elseBlock->getEntry()));
+   // set return value for then branch
+   _block = thenBlock;
+   TR::Node * thenNode = (TR::Node::create(TR::ixor, 2,
+                                           TR::Node::create(TR::ishr, 2,
+                                                            TR::Node::create(TR::iand, 2,
+                                                                             TR::Node::createLoad(lengthInBytes),
+                                                                             TR::Node::createLoad(mask)),
+                                                            TR::Node::createLoad(log2ArrayIndexScale)),
+                                           TR::Node::create(TR::iconst, 0, -1)));
+   genTreeTop(TR::Node::createStore(rv, thenNode));
+   genTreeTop(TR::Node::createbranch(TR::Goto, 0, returnBlock->getEntry()));
+   // set return value for else branch
+   _block = elseBlock;
+   TR::Node * elseNode = TR::Node::create(TR::ishr, 2, TR::Node::createLoad(res), TR::Node::createLoad(log2ArrayIndexScale));
+   genTreeTop(TR::Node::createStore(rv, elseNode));
+   // create return
+   _block = returnBlock;
+   genTreeTop(TR::Node::create(method()->returnOpCode(), 1, TR::Node::createLoad(rv)));
+
+   cfg()->addEdge(cfg()->getStart(), ifBlock);
+   cfg()->insertBefore(ifBlock, thenBlock);
+   cfg()->insertBefore(thenBlock, elseBlock);
+   cfg()->insertBefore(elseBlock, returnBlock);
+   cfg()->insertBefore(returnBlock, 0);
    }
 
 

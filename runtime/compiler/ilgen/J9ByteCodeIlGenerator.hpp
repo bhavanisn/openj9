@@ -276,6 +276,7 @@ private:
    void         genHWOptimizedStrProcessingAvailable();
    void         genJITIntrinsicsEnabled();
    void         genIsORBDeepCopyAvailable();
+   void         genVectorizedMismatch();
 
    TR::Node     *genNewInstanceImplCall(TR::Node *classNode);
    //TR::Node *  transformNewInstanceImplCall(TR::TreeTop *, TR::Node *);

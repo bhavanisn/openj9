@@ -3752,6 +3752,50 @@ TR_J9ByteCodeIlGenerator::genInvoke(TR::SymbolReference * symRef, TR::Node *indi
       }
 #endif
 
+   static bool doArraycmpMismatch = feGetEnv("AM_TEST") != NULL;
+   if (symbol->getRecognizedMethod() == TR::jdk_internal_util_ArraysSupport_vectorizedMismatch) 
+      printf("@@@@ AM_TEST is set to %d %d symbol = %d == %d\n",doArraycmpMismatch, cg()->getSupportsArrayCmp(), symbol->getRecognizedMethod(),TR::jdk_internal_util_ArraysSupport_vectorizedMismatch);
+   if (doArraycmpMismatch && cg()->getSupportsArrayCmp() && symbol->getRecognizedMethod() == TR::jdk_internal_util_ArraysSupport_vectorizedMismatch)
+      {
+      printf("@@@@ Generating il for vectorized mismatch using iselect\n");
+      TR::Node * log2ArrayIndexScale = pop();
+      TR::Node * length = pop();
+      TR::Node * bOffset = pop();
+      TR::Node * b = pop();
+      TR::Node * aOffset = pop();
+      TR::Node * a = pop();
+
+      TR::Node * lengthInBytes = TR::Node::create(TR::ishl, 2, length, log2ArrayIndexScale);
+      TR::Node * mask = TR::Node::create(TR::ior, 2,
+                                       TR::Node::create(TR::ishl, 2,
+                                                         log2ArrayIndexScale,
+                                                         TR::Node::create(TR::iconst, 0, 1)),
+                                       TR::Node::create(TR::iconst, 0, 3));
+      TR::Node * neg1 = TR::Node::create(TR::iconst, 0, -1);
+      TR::Node * n = TR::Node::create(TR::iand, 2,
+                                    lengthInBytes,
+                                    TR::Node::create(TR::ixor, 2, mask, neg1));
+      TR::Node * res = TR::Node::create(TR::arraycmp, 3,
+                                       TR::Node::create(TR::aladd, 2, a, aOffset),
+                                       TR::Node::create(TR::aladd, 2, b, bOffset),
+                                       TR::Node::create(TR::i2l, 1, n));
+      res->setArrayCmpLen(true);
+      res->setSymbolReference(symRefTab()->findOrCreateArrayCmpSymbol());
+      TR::Node * thenNode = (TR::Node::create(TR::ixor, 2,
+                                             TR::Node::create(TR::ishr, 2,
+                                                               TR::Node::create(TR::iand, 2, lengthInBytes, mask),
+                                                               log2ArrayIndexScale),
+                                             neg1));
+      TR::Node * elseNode = TR::Node::create(TR::ishr, 2, res, log2ArrayIndexScale);
+      TR::Node * rv = TR::Node::create(TR::iselect, 3,
+                                       TR::Node::create(TR::icmpeq, 2, res, n),
+                                       thenNode,
+                                       elseNode);
+
+      push(rv);
+      return rv;
+      }
+
    if (symbol->getRecognizedMethod() == TR::com_ibm_Compiler_Internal__TR_Prefetch)
       {
       TR::Node *node = NULL;
