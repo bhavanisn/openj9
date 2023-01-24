@@ -236,7 +236,7 @@ bool TR_J9ByteCodeIlGenerator::internalGenIL()
             return true;
             }
          }
-
+/*
       static bool doArraycmpMismatch = feGetEnv("AM_TEST") != NULL;
       if (doArraycmpMismatch && recognizedMethod == TR::jdk_internal_util_ArraysSupport_vectorizedMismatch)
          {
@@ -247,7 +247,7 @@ bool TR_J9ByteCodeIlGenerator::internalGenIL()
             return true;
             }
          }
-
+*/
       if (!comp()->getOption(TR_DisableInliningOfNatives))
          {
          // If we're inlining then there are some stack walking routines that can be made faster

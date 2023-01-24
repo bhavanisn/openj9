@@ -3753,11 +3753,10 @@ TR_J9ByteCodeIlGenerator::genInvoke(TR::SymbolReference * symRef, TR::Node *indi
 #endif
 
    static bool doArraycmpMismatch = feGetEnv("AM_TEST") != NULL;
-   if (symbol->getRecognizedMethod() == TR::jdk_internal_util_ArraysSupport_vectorizedMismatch) 
-      printf("@@@@ AM_TEST is set to %d %d symbol = %d == %d\n",doArraycmpMismatch, cg()->getSupportsArrayCmp(), symbol->getRecognizedMethod(),TR::jdk_internal_util_ArraysSupport_vectorizedMismatch);
+   traceMsg(comp(), "@@@@ AM_TEST is set to %d %d symbol = %d == %d\n",doArraycmpMismatch, cg()->getSupportsArrayCmp(), symbol->getRecognizedMethod(),TR::jdk_internal_util_ArraysSupport_vectorizedMismatch);
    if (doArraycmpMismatch && cg()->getSupportsArrayCmp() && symbol->getRecognizedMethod() == TR::jdk_internal_util_ArraysSupport_vectorizedMismatch)
       {
-      printf("@@@@ Generating il for vectorized mismatch using iselect\n");
+      traceMsg(comp(),"@@@@ Generating il for vectorized mismatch using iselect\n");
       TR::Node * log2ArrayIndexScale = pop();
       TR::Node * length = pop();
       TR::Node * bOffset = pop();
