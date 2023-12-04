@@ -121,6 +121,10 @@ class OMR_EXTENSIBLE TreeEvaluator: public J9::TreeEvaluator
    static TR::Register *NULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *resolveAndNULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    static TR::Register *evaluateNULLCHKWithPossibleResolve(TR::Node *node, bool needResolution, TR::CodeGenerator *cg);
+   static TR::Register *icompressbitsEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *iexpandbitsEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *lcompressbitsEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+   static TR::Register *lexpandbitsEvaluator(TR::Node *node, TR::CodeGenerator *cg);
    };
 }
 

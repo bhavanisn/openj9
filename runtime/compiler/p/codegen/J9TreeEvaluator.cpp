@@ -13026,3 +13026,72 @@ J9::Power::TreeEvaluator::evaluateNULLCHKWithPossibleResolve(TR::Node *node, boo
 
    return NULL;
    }
+
+TR::Register*
+J9::Power::TreeEvaluator::icompressbitsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+      TR::Node *srcNode = node->getFirstChild();
+      TR::Node *maskNode = node->getSecondChild();
+      TR::Register *srcReg = cg->evaluate(srcNode);
+      TR::Register *maskReg = cg->evaluate(maskNode);
+      TR::Register *resReg = cg->allocateRegister();
+
+      generateTrg1Src2Instruction(cg, TR::InstOpCode::pextd, node, resReg, srcReg, maskReg);
+      node->setRegister(resReg);
+      cg->decReferenceCount(srcNode);
+      cg->decReferenceCount(maskNode);
+
+      return resReg;
+   }
+
+TR::Register*
+J9::Power::TreeEvaluator::iexpandbitsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+      TR::Node *srcNode = node->getFirstChild();
+      TR::Node *maskNode = node->getSecondChild();
+      TR::Register *srcReg = cg->evaluate(srcNode);
+      TR::Register *maskReg = cg->evaluate(maskNode);
+      TR::Register *resReg = cg->allocateRegister();
+
+      generateTrg1Src2Instruction(cg, TR::InstOpCode::pdepd, node, resReg, srcReg, maskReg);
+      node->setRegister(resReg);
+      cg->decReferenceCount(srcNode);
+      cg->decReferenceCount(maskNode);
+
+      return resReg;
+   }
+
+TR::Register*
+J9::Power::TreeEvaluator::lcompressbitsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+      TR::Node *srcNode = node->getFirstChild();
+      TR::Node *maskNode = node->getSecondChild();
+      TR::Register *srcReg = cg->evaluate(srcNode);
+      TR::Register *maskReg = cg->evaluate(maskNode);
+      TR::Register *resReg = cg->allocateRegister();
+
+      generateTrg1Src2Instruction(cg, TR::InstOpCode::pextd, node, resReg, srcReg, maskReg);
+      node->setRegister(resReg);
+      cg->decReferenceCount(srcNode);
+      cg->decReferenceCount(maskNode);
+
+      return resReg;
+   }
+
+TR::Register*
+J9::Power::TreeEvaluator::lexpandbitsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+   {
+      TR::Node *srcNode = node->getFirstChild();
+      TR::Node *maskNode = node->getSecondChild();
+      TR::Register *srcReg = cg->evaluate(srcNode);
+      TR::Register *maskReg = cg->evaluate(maskNode);
+      TR::Register *resReg = cg->allocateRegister();
+
+      generateTrg1Src2Instruction(cg, TR::InstOpCode::pdepd, node, resReg, srcReg, maskReg);
+      node->setRegister(resReg);
+      cg->decReferenceCount(srcNode);
+      cg->decReferenceCount(maskNode);
+
+      return resReg;
+
+   }
